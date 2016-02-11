@@ -220,7 +220,7 @@ EOT;
 		$options = [
 			'width' => 50,
 			'height' => 30,
-			'colorscheme' => dark
+			'colorscheme' => 'dark'
 		];
 
 		return <<<EOT
