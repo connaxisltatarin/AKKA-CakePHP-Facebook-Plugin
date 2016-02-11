@@ -29,6 +29,7 @@ class GraphComponent extends Component {
 	 * @var type type Object
 	 */
 	public $Facebook = null;
+
 	/**
 	 * 	Facebook Redirect Login Helper
 	 * 
@@ -72,13 +73,6 @@ class GraphComponent extends Component {
 	public $FacebookGraphUser = null;
 
 	/**
-	 * Facebook Session
-	 * 
-	 * @var type Object
-	 */
-	public $FacebookSession = null;
-
-	/**
 	 * Facebook User Full Name
 	 * 
 	 * @var type String
@@ -112,6 +106,7 @@ class GraphComponent extends Component {
 	 * @var type String
 	 */
 	public $FacebookEmail = null;
+	public $FacebookPicture = null;
 
 	/**
 	 * Component Configuration
@@ -150,6 +145,7 @@ class GraphComponent extends Component {
 		'app_id' => '',
 		'app_secret' => '',
 		'app_scope' => [],
+		'default_graph_version' => 'v2.5',
 		'redirect_url' => '/users/login',
 		'post_login_redirect' => '/',
 		'enable_graph_helper' => true,
@@ -158,7 +154,8 @@ class GraphComponent extends Component {
 			'first_name' => 'first_name',
 			'last_name' => 'last_name',
 			'password' => 'password',
-			'username' => 'username'
+			'username' => 'username',
+			'avatar' => 'avatar'
 		]
 	];
 
@@ -212,11 +209,11 @@ class GraphComponent extends Component {
 	 * @param \Cake\Event\Event $event
 	 */
 	public function beforeFilter(Event $event) {
-		
+
 		$this->Facebook = new Facebook\Facebook([
 			'app_id' => $this->_configs['app_id'],
 			'app_secret' => $this->_configs['app_secret'],
-			'default_graph_version' => 'v2.5',
+			'default_graph_version' => $this->_configs['default_graph_version'],
 		]);
 
 		$this->FacebookRedirectUrl = $this->_configs['redirect_url'];
@@ -224,20 +221,24 @@ class GraphComponent extends Component {
 
 		try {
 			$this->FacebookAccessToken = $this->FacebookHelper->getAccessToken();
-		} catch (FacebookRequestException $ex) {
-			$this->log($ex->getMessage());
-		} catch (Exception $ex) {
-			$this->log($ex->getMessage());
+		} catch (Facebook\Exceptions\FacebookResponseException $e) {
+			// When Graph returns an error
+			$this->log($e->getMessage());
+		} catch (Facebook\Exceptions\FacebookSDKException $e) {
+			// When validation fails or other local issues
+			$this->log($e->getMessage());
+		} catch (Exception $e) {
+			$this->log($e->getMessage());
 		}
 
 		if ($this->FacebookAccessToken) {
 			try {
 				$oAuth2Client = $this->Facebook->getOAuth2Client();
 				$longLivedAccessToken = $oAuth2Client->getLongLivedAccessToken($this->FacebookAccessToken);
-				
+
 				$this->Facebook->setDefaultAccessToken($longLivedAccessToken);
-				
-				$this->FacebookResponse = $this->Facebook->get('/me?fields=name,email,first_name,last_name');
+
+				$this->FacebookResponse = $this->Facebook->get('/me?fields=name,email,first_name,last_name,picture.type(large)');
 				$this->FacebookGraphUser = $this->FacebookResponse->getGraphUser();
 
 				$this->FacebookName = $this->FacebookGraphUser->getName();
@@ -245,12 +246,17 @@ class GraphComponent extends Component {
 				$this->FacebookLastName = $this->FacebookGraphUser->getLastName();
 				$this->FacebookEmail = $this->FacebookGraphUser->getEmail();
 				$this->FacebookId = $this->FacebookGraphUser->getId();
-				
+
 				$picture = $this->FacebookGraphUser->getPicture();
-			} catch (FacebookRequestException $ex) {
-				$this->log($ex->getMessage());
-			} catch (Exception $ex) {
-				$this->log($ex->getMessage());
+				$this->FacebookPicture = $picture->getUrl();
+			} catch (Facebook\Exceptions\FacebookResponseException $e) {
+				// When Graph returns an error
+				$this->log($e->getMessage());
+			} catch (Facebook\Exceptions\FacebookSDKException $e) {
+				// When validation fails or other local issues
+				$this->log($e->getMessage());
+			} catch (Exception $e) {
+				$this->log($e->getMessage());
 			}
 		}
 	}
@@ -282,6 +288,8 @@ class GraphComponent extends Component {
 					$this->Flash->warning("This Facebook account is already connected with another user. You can only have one account with Facebook");
 					$this->Controller->redirect($this->_configs['post_login_redirect']);
 				} else {
+					$this->__updatePicture($queryFacebookId);
+					$existing_user['avatar'] = $this->FacebookPicture;
 					$this->Auth->setUser($existing_user);
 					$this->Controller->redirect($this->_configs['post_login_redirect']);
 				}
@@ -316,6 +324,9 @@ class GraphComponent extends Component {
 					}
 				}
 			}
+		} else if ($this->Controller->request->query('error')) {
+			$this->Flash->warning("Yikes! Something went wrong, or maybe you just didn't login with Facebook!");
+			$this->Controller->redirect('/');
 		}
 	}
 
@@ -339,10 +350,15 @@ class GraphComponent extends Component {
 	 * @param type $user
 	 */
 	protected function __updateAccount($user) {
-		$this->Users->patchEntity($user, ['facebook_id' => $this->FacebookId]);
+		$this->Users->patchEntity($user, ['facebook_id' => $this->FacebookId, 'avatar' => $this->FacebookPicture]);
 		if ($result = $this->Users->save($user)) {
 			$this->__autoLogin($result);
 		}
+	}
+
+	protected function __updatePicture($user) {
+		$this->Users->patchEntity($user, ['avatar' => $this->FacebookPicture]);
+		$result = $this->Users->save($user);
 	}
 
 	/**
@@ -354,6 +370,7 @@ class GraphComponent extends Component {
 			$this->_configs['user_columns']['first_name'] => $this->FacebookFirstName,
 			$this->_configs['user_columns']['last_name'] => $this->FacebookLastName,
 			$this->_configs['user_columns']['password'] => $this->__randomPassword(),
+			$this->_configs['user_columns']['avatar'] => $this->FacebookPicture,
 			'facebook_id' => $this->FacebookId,
 			'email' => $this->FacebookEmail
 		];
@@ -361,7 +378,7 @@ class GraphComponent extends Component {
 		$user = $this->Users->newEntity($data);
 
 		if ($result = $this->Users->save($user)) {
-			$this->__autoLogin($result);
+			$this->__autoLogin($result, true);
 		}
 	}
 
@@ -370,11 +387,15 @@ class GraphComponent extends Component {
 	 * 
 	 * @param type $result
 	 */
-	protected function __autoLogin($result) {
+	protected function __autoLogin($result, $new_user = false) {
 		$authUser = $this->Users->get($result->id)->toArray();
 
 		$this->Auth->setUser($authUser);
-		$this->Controller->redirect($this->_configs['post_login_redirect']);
+		if ($new_user) {
+			$this->Controller->redirect(['controller' => 'Users', 'action' => 'profile']);
+		} else {
+			$this->Controller->redirect($this->_configs['post_login_redirect']);
+		}
 	}
 
 	/**
