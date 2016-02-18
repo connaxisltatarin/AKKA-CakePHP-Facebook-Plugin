@@ -272,6 +272,10 @@ class GraphComponent extends Component {
 		 */
 		//debug($this->Controller->request->query('code'));
 		if ($this->Controller->request->query('code')) {
+
+			// Redirect url comes from Auth
+			$this->_configs['post_login_redirect'] = $this->Auth->redirectUrl();
+
 			//debug($this->Controller->request);die;
 			/**
 			 * Queries database for existing Facebook Id
