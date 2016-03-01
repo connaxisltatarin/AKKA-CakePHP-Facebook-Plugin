@@ -293,7 +293,7 @@ class GraphComponent extends Component {
 					$this->Controller->redirect($this->_configs['post_login_redirect']);
 				} else {
 					$this->__updatePicture($queryFacebookId);
-					$existing_user['avatar'] = $this->FacebookPicture;
+					$existing_user[$this->_configs['user_columns']['avatar']] = $this->FacebookPicture;
 					$this->Auth->setUser($existing_user);
 					$this->Controller->redirect($this->_configs['post_login_redirect']);
 				}
@@ -354,14 +354,14 @@ class GraphComponent extends Component {
 	 * @param type $user
 	 */
 	protected function __updateAccount($user) {
-		$this->Users->patchEntity($user, ['facebook_id' => $this->FacebookId, 'avatar' => $this->FacebookPicture]);
+		$this->Users->patchEntity($user, ['facebook_id' => $this->FacebookId, $this->_configs['user_columns']['avatar'] => $this->FacebookPicture]);
 		if ($result = $this->Users->save($user)) {
 			$this->__autoLogin($result);
 		}
 	}
 
 	protected function __updatePicture($user) {
-		$this->Users->patchEntity($user, ['avatar' => $this->FacebookPicture]);
+		$this->Users->patchEntity($user, [$this->_configs['user_columns']['avatar'] => $this->FacebookPicture]);
 		$result = $this->Users->save($user);
 	}
 
