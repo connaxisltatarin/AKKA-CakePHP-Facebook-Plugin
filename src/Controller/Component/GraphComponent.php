@@ -155,7 +155,8 @@ class GraphComponent extends Component {
 			'last_name' => 'last_name',
 			'password' => 'password',
 			'username' => 'username',
-			'avatar' => 'avatar'
+			'avatar' => 'avatar',
+			'gender' => 'gender'
 		]
 	];
 
@@ -238,7 +239,7 @@ class GraphComponent extends Component {
 
 				$this->Facebook->setDefaultAccessToken($longLivedAccessToken);
 
-				$this->FacebookResponse = $this->Facebook->get('/me?fields=name,email,first_name,last_name,picture.type(large)');
+				$this->FacebookResponse = $this->Facebook->get('/me?fields=name,email,first_name,last_name,gender,picture.type(large)');
 				$this->FacebookGraphUser = $this->FacebookResponse->getGraphUser();
 
 				$this->FacebookName = $this->FacebookGraphUser->getName();
@@ -246,7 +247,8 @@ class GraphComponent extends Component {
 				$this->FacebookLastName = $this->FacebookGraphUser->getLastName();
 				$this->FacebookEmail = $this->FacebookGraphUser->getEmail();
 				$this->FacebookId = $this->FacebookGraphUser->getId();
-
+				$this->Gender = $this->FacebookGraphUser->getGender();
+				
 				$picture = $this->FacebookGraphUser->getPicture();
 				$this->FacebookPicture = $picture->getUrl();
 			} catch (Facebook\Exceptions\FacebookResponseException $e) {
@@ -376,6 +378,7 @@ class GraphComponent extends Component {
 			$this->_configs['user_columns']['last_name'] => $this->FacebookLastName,
 			$this->_configs['user_columns']['password'] => $this->__randomPassword(),
 			$this->_configs['user_columns']['avatar'] => $this->FacebookPicture,
+			$this->_configs['user_columns']['gender'] => $this->Gender,
 			'facebook_id' => $this->FacebookId,
 			'email' => $this->FacebookEmail
 		];
