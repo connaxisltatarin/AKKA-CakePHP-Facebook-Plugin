@@ -289,7 +289,7 @@ class GraphComponent extends Component {
 
 				$existing_user = $queryFacebookId->toArray();
 				if ($this->Auth->user() && $this->Auth->user('facebook_id') != $existing_user['facebook_id']) {
-					$this->Flash->warning("This Facebook account is already connected with another user. You can only have one account with Facebook");
+					$this->Flash->set('This Facebook account is already connected with another user. You can only have one account with Facebook', array('element' => 'Site/error'));
 					$this->Controller->redirect($this->_configs['post_login_redirect']);
 				} else {
 					$this->__updatePicture($queryFacebookId);
@@ -309,7 +309,8 @@ class GraphComponent extends Component {
 				 */
 				if ($queryFacebookEmail) {
 					if ($this->Auth->user() && $this->Auth->user('email') != $queryFacebookEmail['email']) {
-						$this->Flash->warning("This Facebook account is already connected with another user. You can only have one account with Facebook");
+						$this->Flash->set('This Facebook account is already connected with another user. You can only have one account with Facebook', array('element' => 'Site/error'));
+						$this->Controller->redirect($this->_configs['post_login_redirect']);
 					} else {
 						$this->__updateAccount($queryFacebookEmail);
 					}
@@ -329,7 +330,7 @@ class GraphComponent extends Component {
 				}
 			}
 		} else if ($this->Controller->request->query('error')) {
-			$this->Flash->warning("Yikes! Something went wrong, or maybe you just didn't login with Facebook!");
+			//$this->Flash->set('Yikes! Something went wrong, or maybe you just didn\'t login with Facebook!', array('element' => 'Site/error'));
 			$this->Controller->redirect('/');
 		}
 	}
@@ -393,10 +394,15 @@ class GraphComponent extends Component {
 	 */
 	protected function __autoLogin($result, $new_user = false) {
 		$authUser = $this->Users->get($result->id)->toArray();
+		
+		$redirectUrl = ['controller' => 'Users', 'action' => 'profile'];
+		if(strpos($this->_configs['post_login_redirect'], '/invite') !== false){
+			$redirectUrl = $this->_configs['post_login_redirect'];
+		}
 
 		$this->Auth->setUser($authUser);
 		if ($new_user) {
-			$this->Controller->redirect(['controller' => 'Users', 'action' => 'profile']);
+			$this->Controller->redirect($redirectUrl);
 		} else {
 			$this->Controller->redirect($this->_configs['post_login_redirect']);
 		}
