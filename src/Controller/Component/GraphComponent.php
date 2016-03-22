@@ -327,7 +327,11 @@ class GraphComponent extends Component {
 						/**
 						 * If FacebookUserId and FacebookUserEmail is not in database, create new account
 						 */
-						$this->__newAccount();
+						$newAccountResult = $this->__newAccount();
+						if(empty($newAccountResult['status'])){
+							$this->Flash->set($newAccountResult['message'], array('element' => 'Site/error'));
+							$this->Controller->redirect($this->_configs['post_login_redirect']);
+						}
 					}
 				}
 			}
@@ -373,7 +377,7 @@ class GraphComponent extends Component {
 	 */
 	protected function __newAccount() {
 		$data = [
-			$this->_configs['user_columns']['username'] => $this->__generateUsername(),
+			//$this->_configs['user_columns']['username'] => $this->__generateUsername(),
 			$this->_configs['user_columns']['first_name'] => $this->FacebookFirstName,
 			$this->_configs['user_columns']['last_name'] => $this->FacebookLastName,
 			$this->_configs['user_columns']['password'] => $this->__randomPassword(),
@@ -382,11 +386,17 @@ class GraphComponent extends Component {
 			'facebook_id' => $this->FacebookId,
 			'email' => $this->FacebookEmail
 		];
+		
+		if(!empty($this->FacebookEmail)){
+			$user = $this->Users->newEntity($data);
 
-		$user = $this->Users->newEntity($data);
-
-		if ($result = $this->Users->save($user)) {
-			$this->__autoLogin($result, true);
+			$result = $this->Users->save($user);
+			if ($result) {
+				$this->__autoLogin($result, true);
+			}
+			return ['status' => true, 'message' => ''];
+		}else{
+			return ['status' => false, 'message' => 'Email can not be empty'];
 		}
 	}
 
