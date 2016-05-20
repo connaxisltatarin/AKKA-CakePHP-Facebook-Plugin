@@ -291,7 +291,7 @@ class GraphComponent extends Component {
 
 				$existing_user = $queryFacebookId->toArray();
 				if ($this->Auth->user() && $this->Auth->user('facebook_id') != $existing_user['facebook_id']) {
-					$this->Flash->set('This Facebook account is already connected with another user. You can only have one account with Facebook', array('element' => 'Site/error'));
+					$this->Flash->set('Dit Facebook account is al gekoppeld aan een ander e-mail adres.', array('element' => 'Site/error'));
 					$this->Controller->redirect($this->_configs['post_login_redirect']);
 				} else {
 					$this->__updatePicture($queryFacebookId);
@@ -311,7 +311,7 @@ class GraphComponent extends Component {
 				 */
 				if ($queryFacebookEmail) {
 					if ($this->Auth->user() && $this->Auth->user('email') != $queryFacebookEmail['email']) {
-						$this->Flash->set('This Facebook account is already connected with another user. You can only have one account with Facebook', array('element' => 'Site/error'));
+						$this->Flash->set('Dit Facebook account is al gekoppeld aan een ander e-mail adres.', array('element' => 'Site/error'));
 						$this->Controller->redirect($this->_configs['post_login_redirect']);
 					} else {
 						$this->__updateAccount($queryFacebookEmail);
