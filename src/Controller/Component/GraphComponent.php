@@ -2,7 +2,7 @@
 
 /**
  * AkkaFacebook Graph Component
- * 
+ *
  * @author Andre Santiago
  * @copyright (c) 2015 akkaweb.com
  * @license MIT
@@ -11,12 +11,12 @@
 namespace AkkaFacebook\Controller\Component;
 
 use Cake\Controller\Component;
-use Cake\Controller\ComponentRegistry;
 use Cake\Core\Configure;
 use Cake\Event\Event;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Router;
 use Facebook;
+use Symfony\Component\Config\Definition\Exception\Exception;
 
 /**
  * Graph component
@@ -25,84 +25,84 @@ class GraphComponent extends Component {
 
 	/**
 	 * Facebook Main Class
-	 * 
+	 *
 	 * @var type type Object
 	 */
 	public $Facebook = null;
 
 	/**
 	 * 	Facebook Redirect Login Helper
-	 * 
+	 *
 	 * @var type Object
 	 */
 	public $FacebookHelper = null;
 
 	/**
 	 * Facebook Access Token
-	 * 
+	 *
 	 * @var type String
 	 */
 	public $FacebookAccessToken = null;
 
 	/**
-	 * Assigned Redirect Url 
-	 * 
+	 * Assigned Redirect Url
+	 *
 	 * @var type String
 	 */
 	public $FacebookRedirectUrl = null;
 
 	/**
 	 * Facebook Request
-	 * 
+	 *
 	 * @var type Object
 	 */
 	public $FacebookRequest = null;
 
 	/**
 	 * Facebook Response
-	 * 
+	 *
 	 * @var type Object
 	 */
 	public $FacebookResponse = null;
 
 	/**
 	 * Facebook Graph User
-	 * 
+	 *
 	 * @var type Object
 	 */
 	public $FacebookGraphUser = null;
 
 	/**
 	 * Facebook User Full Name
-	 * 
+	 *
 	 * @var type String
 	 */
 	public $FacebookName = null;
 
 	/**
 	 * Facebook User First Name
-	 * 
+	 *
 	 * @var type String
 	 */
 	public $FacebookFirstName = null;
 
 	/**
 	 * Facebook User Last Name
-	 * 
+	 *
 	 * @var type String
 	 */
 	public $FacebookLastName = null;
 
 	/**
 	 * Facebook User Id
-	 * 
+	 *
 	 * @var type String
 	 */
 	public $FacebookId = null;
 
 	/**
 	 * Facebook User Email
-	 * 
+	 *
 	 * @var type String
 	 */
 	public $FacebookEmail = null;
@@ -110,28 +110,28 @@ class GraphComponent extends Component {
 
 	/**
 	 * Component Configuration
-	 * 
+	 *
 	 * @var type Array
 	 */
 	protected $_configs = null;
 
 	/**
 	 * Application Users Model Object
-	 * 
+	 *
 	 * @var type Object
 	 */
 	protected $Users = null;
 
 	/**
 	 * Components Controller
-	 * 
+	 *
 	 * @var type Object
 	 */
 	protected $Controller = null;
 
 	/**
 	 * Application Components
-	 * 
+	 *
 	 * @var type Component
 	 */
 	public $components = ['Flash', 'Auth'];
@@ -147,7 +147,7 @@ class GraphComponent extends Component {
 		'app_scope' => [],
 		'default_graph_version' => 'v2.5',
 		'redirect_url' => '/users/login',
-		'post_login_redirect' => '/',
+		'post_redirect_url' => '/',
 		'enable_graph_helper' => true,
 		'user_model' => 'Users',
 		'user_columns' => [
@@ -157,36 +157,38 @@ class GraphComponent extends Component {
 			'username' => 'username',
 			'avatar' => 'avatar',
 			'gender' => 'gender'
+		],
+		'callbacks' => [
+			'beforeAddUser' => null,
+			'afterAddUserSuccess' => null,
+			'afterAddUserError' => null,
+			'afterLoginUser' => null,
+			'afterLinkUserSuccess' => null,
+			'afterLinkUserError' => null,
+			'afterError' => null
 		]
 	];
 
 	/**
 	 * Initialize Controllers, User Model and Session
-	 * 
+	 *
 	 * @param array $config
 	 */
 	public function initialize(array $config) {
 		parent::initialize($config);
-		/**
-		 * Assigned merge configuration
-		 */
+		
+		// Assigned merge configuration
 		$this->_configs = $this->config();
 
-		/**
-		 * Get current controller
-		 */
+		// Get current controller
 		$this->Controller = $this->_registry->getController();
-		//debug($this->Controller->request);
-		/**
-		 * Start session if not already started
-		 */
+
+		// Start session if not already started
 		if ($this->isSessionStarted() === FALSE) {
 			$this->Controller->request->session()->start();
 		}
 
-		/**
-		 * Attach Facebook Graph Helper
-		 */
+		// Attach Facebook Graph Helper
 		if ($this->_configs['enable_graph_helper']) {
 			$this->Controller->helpers = [
 				'AkkaFacebook.Facebook' => [
@@ -197,17 +199,15 @@ class GraphComponent extends Component {
 			];
 		}
 
-		/**
-		 * Initialize the Users Model class
-		 */
+		// Initialize the Users Model class
 		$this->Users = TableRegistry::get($this->_configs['user_model']);
 		$this->Users->recursive = -1;
 	}
 
 	/**
 	 * Initialize Facebook, create Session, fire Request and get User Object
-	 * 
-	 * @param \Cake\Event\Event $event
+	 *
+	 * @param Event $event
 	 */
 	public function beforeFilter(Event $event) {
 
@@ -248,7 +248,7 @@ class GraphComponent extends Component {
 				$this->FacebookEmail = $this->FacebookGraphUser->getEmail();
 				$this->FacebookId = $this->FacebookGraphUser->getId();
 				$this->Gender = $this->FacebookGraphUser->getGender();
-				
+
 				$picture = $this->FacebookGraphUser->getPicture();
 				$this->FacebookPicture = $picture->getUrl();
 			} catch (Facebook\Exceptions\FacebookResponseException $e) {
@@ -265,117 +265,174 @@ class GraphComponent extends Component {
 
 	/**
 	 *  Component Startup
-	 * 
-	 * @param \Cake\Event\Event $event
+	 *
+	 * @param Event $event
 	 */
 	public function startup(Event $event) {
-		/**
-		 * Checks if user is trying to authenticate by watching for what Facebook returns
-		 */
-		//debug($this->Controller->request->query('code'));
+		// Checks if user is trying to authenticate by watching for what Facebook returns
 		if ($this->Controller->request->query('code')) {
 
-			// Redirect url comes from Auth
-			$this->_configs['post_login_redirect'] = $this->Auth->redirectUrl();
+			if(empty($this->_configs['post_redirect_url'])){
+				// Redirect url comes from Auth
+				$this->_configs['post_redirect_url'] = $this->Auth->redirectUrl();
+			}
 
-			//debug($this->Controller->request);die;
-			/**
-			 * Queries database for existing Facebook Id
-			 */
-			$queryFacebookId = $this->Users->find('all')->where(['facebook_id' => $this->FacebookId])->first();
+			// Queries database for existing Facebook Id
+			$queryFacebookIdUser = $this->Users->find('all')->where(['facebook_id' => $this->FacebookId])->first();
 
-			/**
-			 * Authenticates existing user into application
-			 */
-			if ($queryFacebookId) {
-
-				$existing_user = $queryFacebookId->toArray();
-				if ($this->Auth->user() && $this->Auth->user('facebook_id') != $existing_user['facebook_id']) {
-					$this->Flash->set('Dit Facebook account is al gekoppeld aan een ander e-mail adres.', array('element' => 'Site/error'));
-					$this->Controller->redirect($this->_configs['post_login_redirect']);
-				} else {
-					$this->__updatePicture($queryFacebookId);
-					$existing_user[$this->_configs['user_columns']['avatar']] = $this->FacebookPicture;
-					$this->Auth->setUser($existing_user);
-					$this->Controller->redirect($this->_configs['post_login_redirect']);
+			// Authenticates existing user into application
+			if ($queryFacebookIdUser) {
+				if($this->Auth->user()){
+					if ($this->Auth->user('facebook_id') != $queryFacebookIdUser['facebook_id']) {
+						// LINK: ERROR fidAlreadyUsed
+						return $this->_callbackAfterLinkUserError(__('The Facebook account is already used by another user'));
+					}else{
+						// LINK: OK
+						$user = $this->_updateProfile($queryFacebookIdUser);
+						return $this->_callbackAfterLinkUserSuccess($user);
+					}
+				}else{
+					// LOGIN: OK
+					$this->Auth->setUser($queryFacebookIdUser->toArray());
+					return $this->_callbackAfterLoginUser($queryFacebookIdUser);
 				}
 			} else {
-				/**
-				 * Queries database for existing user based on Email
-				 */
-				$queryFacebookEmail = $this->Users->find('all')->where(['email' => $this->FacebookEmail])->first();
+				// Queries database for existing user based on Email
+				$queryFacebookEmailUser = $this->Users->find('all')->where(['email' => $this->FacebookEmail])->first();
 
-
-				/**
-				 * Updates user account by adding FacebookId to it and authenticates user
-				 */
-				if ($queryFacebookEmail) {
-					if ($this->Auth->user() && $this->Auth->user('email') != $queryFacebookEmail['email']) {
-						$this->Flash->set('Dit Facebook account is al gekoppeld aan een ander e-mail adres.', array('element' => 'Site/error'));
-						$this->Controller->redirect($this->_configs['post_login_redirect']);
-					} else {
-						$this->__updateAccount($queryFacebookEmail);
+				// Updates user account by adding FacebookId to it and authenticates user
+				if ($queryFacebookEmailUser) {
+					if($this->Auth->user()){
+						if($this->Auth->user('email') != $queryFacebookEmailUser['email']){
+							// LINK: ERROR emailAlreadyUsed
+							return $this->_callbackAfterLinkUserError(__('The email is already used by another user'));
+						}else{
+							// LINK: OK
+							$user = $this->_updateProfile($queryFacebookEmailUser);
+							return $this->_callbackAfterLinkUserSuccess($user);
+						}
+					}else{
+						// LOGIN: OK
+						$user = $this->_updateProfile($queryFacebookEmailUser, ['facebook_id']);
+						return $this->_callbackAfterLoginUser($user);
 					}
 				} else {
-					/**
-					 * If user is already logged in... add to their logged in account
-					 */
+					// If user is already logged in... add to their logged in account
 					if ($this->Auth->user()) {
 						$user = $this->Users->get($this->Auth->user('id'));
-						$this->__updateAccount($user);
+						// LINK: OK
+						$user = $this->_updateProfile($user);
+						return $this->_callbackAfterLinkUserSuccess($user);
 					} else {
-						/**
-						 * If FacebookUserId and FacebookUserEmail is not in database, create new account
-						 */
-						$newAccountResult = $this->__newAccount();
-						if(empty($newAccountResult['status'])){
-							$this->Flash->set($newAccountResult['message'], array('element' => 'Site/error'));
-							$this->Controller->redirect($this->_configs['post_login_redirect']);
+						// If FacebookUserId and FacebookUserEmail is not in database, create new account
+						$newAccountResult = $this->_newAccount();
+						if(!empty($newAccountResult['status'])){
+							return $this->_callbackAfterAddUserSuccess($newAccountResult['user']);
+						}else{
+							return $this->_callbackAfterAddUserError($newAccountResult['message'], $newAccountResult['user']);
 						}
 					}
 				}
 			}
 		} else if ($this->Controller->request->query('error')) {
-			//$this->Flash->set('Yikes! Something went wrong, or maybe you just didn\'t login with Facebook!', array('element' => 'Site/error'));
-			$this->Controller->redirect('/');
+			return $this->_callbackAfterError($this->Controller->request->query('error'));
+		}
+	}
+
+	private function _callbackBeforeAddUser($data){
+		$response = $this->_callback('beforeAddUser', $data);
+		return $response ? $response : $data;
+	}
+
+	private function _callbackAfterAddUserSuccess($user){
+		$response = $this->_callback('afterAddUserSuccess', $user);
+		return $response ? $response : $this->_cleanRedirect($this->_configs['post_redirect_url']);
+	}
+
+	private function _callbackAfterAddUserError($message, $user){
+		$response = $this->_callback('afterAddUserError', $message, $user);
+		if($response){
+			return $response;
+		}else{
+			$this->Controller->Flash->error($message);
+			return $this->_cleanRedirect(Router::url('/', true));
+		}
+	}
+
+	private function _callbackAfterLoginUser($user){
+		$response = $this->_callback('afterLoginUser', $user);
+		return $response ? $response : $this->_cleanRedirect($this->_configs['post_redirect_url']);
+	}
+
+	private function _callbackAfterLinkUserSuccess($user){
+		$response = $this->_callback('afterLinkUserSuccess', $user);
+		return $response ? $response : $this->_cleanRedirect($this->_configs['post_redirect_url']);
+	}
+
+	private function _callbackAfterLinkUserError($message){
+		$response = $this->_callback('afterLinkUserError', $message);
+		if($response){
+			return $response;
+		}else{
+			$this->Controller->Flash->error($message);
+			return $this->_cleanRedirect($this->_configs['post_redirect_url']);
+		}
+	}
+	
+	private function _callbackAfterError($message){
+		$response = $this->_callback('afterError', $message);
+		if($response){
+			return $response;
+		}else{
+			$this->Controller->Flash->error($message);
+			return $this->_cleanRedirect(Router::url('/', true));
+		}
+	}
+
+	private function _callback(){
+		$args = func_get_args();
+		$event = array_shift($args);
+
+		if(!empty($this->_configs['callbacks'][$event])){
+			$callbackExploded = explode('.', $this->_configs['callbacks'][$event]);
+			$this->Controller->loadComponent($callbackExploded[0]);
+
+			return call_user_func_array([$this->Controller->{$callbackExploded[0]}, $callbackExploded[1]], $args);
 		}
 	}
 
 	/**
-	 *  Component Before Render 
-	 * 
-	 * @param \Cake\Event\Event $event
+	 *  Component Before Render
+	 *
+	 * @param Event $event
 	 */
 	public function beforeRender(Event $event) {
-		/**
-		 * Sets/Configures fb_login_url to be assigned in Facebook Login Button
-		 */
+		// Sets/Configures fb_login_url to be assigned in Facebook Login Button
 		$loginUrl = $this->FacebookHelper->getLoginUrl($this->_configs['redirect_url'], [$this->_configs['app_scope']]);
 
 		$this->Controller->set('fb_login_url', $loginUrl);
 		Configure::write('fb_login_url', $loginUrl);
 	}
-
-	/**
-	 * Add facebook_id to existing user based on their email
-	 * @param type $user
-	 */
-	protected function __updateAccount($user) {
-		$this->Users->patchEntity($user, ['facebook_id' => $this->FacebookId, $this->_configs['user_columns']['avatar'] => $this->FacebookPicture]);
-		if ($result = $this->Users->save($user)) {
-			$this->__autoLogin($result);
+	
+	protected function _updateProfile($user, $fields = ['facebook_id', 'avatar']) {
+		$data = [];
+		if(in_array('facebook_id', $fields)){
+			$data['facebook_id'] = $this->FacebookId;
 		}
-	}
-
-	protected function __updatePicture($user) {
-		$this->Users->patchEntity($user, [$this->_configs['user_columns']['avatar'] => $this->FacebookPicture]);
-		$result = $this->Users->save($user);
+		if(in_array('avatar', $fields)){
+			$data[$this->_configs['user_columns']['avatar']] = $this->FacebookPicture;
+		}
+		
+		$this->Users->patchEntity($user, $data);
+		$this->Users->save($user);
+		$this->Auth->setUser($user->toArray());
+		return $user;
 	}
 
 	/**
 	 * Create a new user using Facebook Credentials
 	 */
-	protected function __newAccount() {
+	protected function _newAccount() {
 		$data = [
 			//$this->_configs['user_columns']['username'] => $this->__generateUsername(),
 			$this->_configs['user_columns']['first_name'] => $this->FacebookFirstName,
@@ -386,44 +443,35 @@ class GraphComponent extends Component {
 			'facebook_id' => $this->FacebookId,
 			'email' => $this->FacebookEmail
 		];
-		
-		if(!empty($this->FacebookEmail)){
-			$user = $this->Users->newEntity($data);
 
-			$result = $this->Users->save($user);
-			if ($result) {
-				$this->__autoLogin($result, true);
-			}
-			return ['status' => true, 'message' => ''];
+		$data = $this->_callbackBeforeAddUser($data);
+		$user = $this->Users->newEntity($data);
+		$result = $this->Users->save($user);
+		if ($result) {
+			$this->Auth->setUser($result->toArray());
+			return ['status' => true, 'user' => $result];
 		}else{
-			return ['status' => false, 'message' => 'Email can not be empty'];
+			return ['status' => false, 'message' => 'Error', 'user' => $user];
 		}
 	}
 
 	/**
 	 * Logs user in application after successful save
-	 * 
+	 *
 	 * @param type $result
 	 */
-	protected function __autoLogin($result, $new_user = false) {
+	protected function _autoLogin($result) {
 		$authUser = $this->Users->get($result->id)->toArray();
-		
-		$redirectUrl = ['controller' => 'Users', 'action' => 'profile'];
-		if(strpos($this->_configs['post_login_redirect'], '/invite') !== false){
-			$redirectUrl = $this->_configs['post_login_redirect'];
-		}
-
 		$this->Auth->setUser($authUser);
-		if ($new_user) {
-			$this->Controller->redirect($redirectUrl);
-		} else {
-			$this->Controller->redirect($this->_configs['post_login_redirect']);
-		}
+	}
+
+	private function _cleanRedirect($url){
+		echo '<script type="text/javascript">top.location.href="'.$url.'";</script>';exit;
 	}
 
 	/**
 	 * Creates a new username
-	 * 
+	 *
 	 * @return type String
 	 */
 	protected function __generateUsername() {
@@ -438,7 +486,7 @@ class GraphComponent extends Component {
 
 	/**
 	 * Generate a random password
-	 * 
+	 *
 	 * @return type String
 	 */
 	protected function __randomPassword() {
@@ -449,7 +497,7 @@ class GraphComponent extends Component {
 			$n = rand(0, $alphaLength);
 			$pass[] = $alphabet[$n];
 		}
-		return implode($pass); //turn the array into a string        
+		return implode($pass); //turn the array into a string
 	}
 
 	/**
