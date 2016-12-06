@@ -346,7 +346,7 @@ class GraphComponent extends Component {
 
 	private function _callbackAfterAddUserSuccess($user){
 		$response = $this->_callback('afterAddUserSuccess', $user);
-		return $response ? $response : $this->_cleanRedirect($this->_configs['post_redirect_url']);
+		return $response ? $response : $this->_callbackAfterLoginUser($user);
 	}
 
 	private function _callbackAfterAddUserError($message, $user){
@@ -355,18 +355,18 @@ class GraphComponent extends Component {
 			return $response;
 		}else{
 			$this->Controller->Flash->error($message);
-			return $this->_cleanRedirect(Router::url('/', true));
+			return $this->cleanRedirect(Router::url('/', true));
 		}
 	}
 
 	private function _callbackAfterLoginUser($user){
 		$response = $this->_callback('afterLoginUser', $user);
-		return $response ? $response : $this->_cleanRedirect($this->_configs['post_redirect_url']);
+		return $response ? $response : $this->cleanRedirect($this->_configs['post_redirect_url']);
 	}
 
 	private function _callbackAfterLinkUserSuccess($user){
 		$response = $this->_callback('afterLinkUserSuccess', $user);
-		return $response ? $response : $this->_cleanRedirect($this->_configs['post_redirect_url']);
+		return $response ? $response : $this->cleanRedirect($this->_configs['post_redirect_url']);
 	}
 
 	private function _callbackAfterLinkUserError($message){
@@ -375,7 +375,7 @@ class GraphComponent extends Component {
 			return $response;
 		}else{
 			$this->Controller->Flash->error($message);
-			return $this->_cleanRedirect($this->_configs['post_redirect_url']);
+			return $this->cleanRedirect($this->_configs['post_redirect_url']);
 		}
 	}
 	
@@ -385,7 +385,7 @@ class GraphComponent extends Component {
 			return $response;
 		}else{
 			$this->Controller->Flash->error($message);
-			return $this->_cleanRedirect(Router::url('/', true));
+			return $this->cleanRedirect(Router::url('/', true));
 		}
 	}
 
@@ -465,7 +465,7 @@ class GraphComponent extends Component {
 		$this->Auth->setUser($authUser);
 	}
 
-	private function _cleanRedirect($url){
+	public function cleanRedirect($url){
 		echo '<script type="text/javascript">top.location.href="'.$url.'";</script>';exit;
 	}
 
